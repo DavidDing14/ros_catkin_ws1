@@ -1,0 +1,2 @@
+set(interact_msg_srv_MESSAGE_FILES "/home/oslab/catkin_ws1/src/interact_proj/interact_msg_srv/msg/AsrResultMsg.msg;/home/oslab/catkin_ws1/src/interact_proj/interact_msg_srv/msg/Order.msg;/home/oslab/catkin_ws1/src/interact_proj/interact_msg_srv/msg/OrderList.msg;/home/oslab/catkin_ws1/src/interact_proj/interact_msg_srv/msg/NotifyGesture.msg;/home/oslab/catkin_ws1/src/interact_proj/interact_msg_srv/msg/PointDirection.msg")
+set(interact_msg_srv_SERVICE_FILES "/home/oslab/catkin_ws1/src/interact_proj/interact_msg_srv/srv/PointCloud.srv")

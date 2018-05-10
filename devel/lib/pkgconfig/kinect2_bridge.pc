@@ -1,0 +1,8 @@
+prefix=/home/oslab/catkin_ws1/devel
+
+Name: kinect2_bridge
+Description: Description of kinect2_bridge
+Version: 0.0.1
+Cflags: -I/home/oslab/catkin_ws1/src/interact_proj/iai_kinect2/kinect2_bridge/include
+Libs: -L/home/oslab/catkin_ws1/devel/lib 
+Requires: kinect2_registration

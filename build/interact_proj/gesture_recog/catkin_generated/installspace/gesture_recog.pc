@@ -1,0 +1,8 @@
+prefix=/home/oslab/catkin_ws1/install
+
+Name: gesture_recog
+Description: Description of gesture_recog
+Version: 1.0.0
+Cflags: 
+Libs: -L/home/oslab/catkin_ws1/install/lib 
+Requires: message_runtime

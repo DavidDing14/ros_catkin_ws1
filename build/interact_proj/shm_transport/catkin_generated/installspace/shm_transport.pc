@@ -1,0 +1,8 @@
+prefix=/home/oslab/catkin_ws1/install
+
+Name: shm_transport
+Description: Description of shm_transport
+Version: 0.0.1
+Cflags: -I/home/oslab/catkin_ws1/install/include
+Libs: -L/home/oslab/catkin_ws1/install/lib -lshm_transport
+Requires: roscpp

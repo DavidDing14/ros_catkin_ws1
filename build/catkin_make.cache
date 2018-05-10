@@ -1,0 +1,2 @@
+interact_proj/gesture_recog:interact_proj/iai_kinect2/iai_kinect2:interact_proj/iai_kinect2/kinect2_bridge:interact_proj/iai_kinect2/kinect2_calibration:interact_proj/iai_kinect2/kinect2_registration:interact_proj/iai_kinect2/kinect2_viewer:interact_proj/interact_msg_srv:interact_proj/shm_transport:interact_proj/thu_kinect2:interact_proj/tzc_transport
+-DCATKIN_DEVEL_PREFIX=/home/oslab/catkin_ws1/devel -DCMAKE_INSTALL_PREFIX=/home/oslab/catkin_ws1/install -G Unix Makefiles

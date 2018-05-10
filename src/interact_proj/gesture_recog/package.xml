@@ -1,0 +1,29 @@
+<package format="2">
+    <name>gesture_recog</name>
+    <version>1.0.0</version>
+    <description>
+        <p>
+                Interactive Robot Project.
+                Using pointing gesture and voice information to navigate a robot.
+        </p>
+    </description>
+    <url>http://hujun1413.github.io</url>
+    <author>Hujun</author>
+    <maintainer email="hujun1413@foxmail.com">Hujun</maintainer>
+    <license>LGPL</license>
+
+    <buildtool_depend>catkin</buildtool_depend>
+    <build_depend>roscpp</build_depend>
+    <build_depend>rosconsole</build_depend>
+    <build_depend>std_srvs</build_depend>
+    <build_depend>message_generation</build_depend>
+	<build_depend>interact_msg_srv</build_depend>
+	
+  	<exec_depend>interact_msg_srv</exec_depend>
+    <exec_depend>message_runtime</exec_depend>
+    <exec_depend>roscpp</exec_depend>
+    <exec_depend>rosconsole</exec_depend>
+    <exec_depend>std_srvs</exec_depend>
+
+</package>
+

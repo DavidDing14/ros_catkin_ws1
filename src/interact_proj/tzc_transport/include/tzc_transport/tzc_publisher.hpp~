@@ -1,0 +1,123 @@
+#ifndef __TZC_PUBLISHER_HPP__
+#define __TZC_PUBLISHER_HPP__
+
+#include <boost/interprocess/managed_shared_memory.hpp>
+#include "ros/ros.h"
+#include "std_msgs/UInt64.h"
+#include "tzc_object.hpp"
+#include "std_msgs/Header.h"
+#include "std_msgs/Float64.h"
+
+namespace tzc_transport
+{
+
+class Topic;
+
+template < class M >
+class Publisher
+{
+public:
+  Publisher() {
+  }
+
+  ~Publisher() {
+  }
+
+  Publisher(const Publisher & p) {
+    *this = p;
+  }
+
+  Publisher & operator = (const Publisher & p) {
+    pub_ = p.pub_;
+    pub_time = p.pub_time;
+    pobj_ = p.pobj_;
+    return *this;
+  }
+
+  bool prepare(M & msg) const {
+    if (!pobj_)
+      return false;
+
+    bool succeeded = false;
+#define RETRY 2
+    // allocation shm message
+    ShmMessage * ptr = NULL;
+    // bad_alloc exception may occur if some ros messages are lost
+    int attempt = 0;
+    for (; attempt < RETRY && ptr == NULL; attempt++) {
+      try {
+        ptr = msg.allocate(pobj_);
+      } catch (boost::interprocess::bad_alloc e) {
+        double timeStamp = pobj_->releaseFirst();
+        if (timeStamp == -2) {
+          ROS_WARN("the oldest is in use, abandon this message <%p>...", &msg);
+          break;
+        } else if (timeStamp == -1) {
+	  ROS_WARN("image number == 0, no more image");
+	  break;
+	} else {
+	  std_msgs::Float64 msg_;
+ 	  msg_.data = timeStamp;
+	  ROS_INFO("msg_.data = %f", msg_.data);
+    	  pub_time.publish(msg_);
+	}
+      }
+    }
+    if (ptr) {
+      msg.fill(ptr, pobj_);
+      succeeded = true;
+    } else if (attempt >= RETRY) {
+      ROS_WARN("bad_alloc happened %d times, abandon this message <%p>...", attempt, &msg);
+    }
+#undef RETRY
+    return succeeded;
+  }
+
+  void publish(const M & msg) const {
+    if (!pobj_)
+      return;
+    pub_.publish(msg);
+  }
+
+  void publish(const typename M::ConstPtr & msg) const {
+    if (!pobj_)
+      return;
+    pub_.publish(msg);
+  }
+
+  void shutdown() {
+    pub_.shutdown();
+    pub_time.shutdown();
+  }
+
+  std::string getTopic() const {
+    return pub_.getTopic();
+  }
+
+  uint32_t getNumSubscribers() const {
+    return pub_.getNumSubscribers();
+  }
+
+private:
+  Publisher(const ros::Publisher & pub, const std::string & topic, uint32_t mem_size, const ros::Publisher & pub_timeStamp)
+      : pub_(pub), pub_time(pub_timeStamp) {
+    // change '/' in topic to '_'
+    std::string t = topic;
+    for (int i = 0; i < t.length(); i++)
+      if (t[i] == '/')
+        t[i] = '_';
+    ShmManager * pshm = new ShmManager(boost::interprocess::open_or_create, t.c_str(), mem_size);
+    pobj_ = ShmObjectPtr(new ShmObject(pshm, t));
+  }
+
+  ros::Publisher pub_;	//publish msg
+  ros::Publisher pub_time;	//publish timeStamp so that assist can erase released image
+  ShmObjectPtr   pobj_;
+
+friend class Topic;
+};
+
+} // namespace tzc_transport
+
+#endif // __TZC_PUBLISHER_HPP__
+

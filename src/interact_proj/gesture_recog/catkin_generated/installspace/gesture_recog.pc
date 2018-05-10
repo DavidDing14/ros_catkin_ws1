@@ -1,0 +1,8 @@
+prefix=/usr/local
+
+Name: gesture_recog
+Description: Description of gesture_recog
+Version: 1.0.0
+Cflags: 
+Libs: -L/usr/local/lib 
+Requires: message_runtime
