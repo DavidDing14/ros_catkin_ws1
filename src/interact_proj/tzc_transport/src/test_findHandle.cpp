@@ -54,7 +54,7 @@ int main(int argc, char **argv)
     uint8_t * data = (uint8_t *)pobj_->convertHandle2Address(got_data_handle);
     cv::Mat rgbmat;
 
-    cv::Mat(colorheight, colorwidth, CV_8UC4, data).copyTo(rgbmat);
+    cv::Mat(colorheight, colorwidth, CV_8UC3, data).copyTo(rgbmat);
     cv::imshow("rgb", rgbmat);
     cv::waitKey(0);
   }

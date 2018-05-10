@@ -17,6 +17,9 @@
 
 using namespace tzc_transport;
 
+ros::Duration totalTime(0);
+long totalImage = 1;
+
 double minDuration = 0.001;	//dxh when release image, the duration between aim and dataHandler[i], see Func :: releaseCallback() for detail
 
 #if __USE_UNORDERED_MAP__ == 1
@@ -60,7 +63,9 @@ void chatterCallback(const ImageConstPtr & msg) {
 
   //ROS_INFO("msg->height = %d, msg->width = %d", msg->height, msg->width);
   ros::Duration t_ = ros::Time::now() - msg->header.stamp;
-  ROS_INFO("time duration = %f", t_.toSec());
+  totalTime += t_;
+  ROS_INFO("time duration = %f", totalTime.toSec()/totalImage);
+  totalImage += 1;
   dataHandler newData(msg->header.stamp, msg->data_handle);	//dxh
   if(dataBuffer.size()>=100)
   {
@@ -148,9 +153,12 @@ void releaseCallback(const std_msgs::Float64::ConstPtr & msg) {
 
 void chatterCallback(const ImageConstPtr & msg) {
   ros::Duration t_ = ros::Time::now() - msg->header.stamp;
-  ROS_INFO("time duration = %f", t_.toSec());
-  std::pair<double, long> newData (msg->header.stamp.toSec(), msg->data_handle);
-  mapBuffer.insert(newData);
+  totalTime += t_;
+  ROS_INFO("time duration = %f", totalTime.toSec()/totalImage);
+  totalImage += 1;
+  //std::pair<double, long> newData (msg->header.stamp.toSec(), msg->data_handle);
+  //mapBuffer.insert(newData);
+  mapBuffer[msg->header.stamp.toSec()] = msg->data_handle;
 }
 
 bool findHandle_(tzc_transport::findHandle::Request &req, tzc_transport::findHandle::Response &res)
@@ -191,10 +199,12 @@ void releaseCallback(const std_msgs::Float64::ConstPtr & msg) {
   std::unordered_map<double, long>::const_iterator got = mapBuffer.find (msg->data);
 
   if ( got == mapBuffer.end() ) 
-    ROS_INFO("not found a image to release");
+  {
+    //ROS_INFO("not found a image to release");
+  }
   else
   {
-    ROS_INFO("found image %f, data_handle is %ld", got->first, got->second);
+    //ROS_INFO("found image %f, data_handle is %ld", got->first, got->second);
     mapBuffer.erase(got);
   }
 }
