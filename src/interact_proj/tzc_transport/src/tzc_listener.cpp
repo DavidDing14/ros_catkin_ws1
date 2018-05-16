@@ -124,7 +124,7 @@ bool findHandle_(tzc_transport::findHandle::Request &req, tzc_transport::findHan
   }
 */
 
-  ShmManager * pshm = new tzc_transport::ShmManager(boost::interprocess::open_only, "_kinect2_raw_color");
+  ShmManager * pshm = new tzc_transport::ShmManager(boost::interprocess::open_only, "_kinect2_raw_pointcloud");
   ShmMessage * msgData = (ShmMessage *)pshm->get_address_from_handle(dataBuffer[imageNo].data_handle);
   msgData->addSaveRef();
   res.data_handle = dataBuffer[imageNo].data_handle;
@@ -159,6 +159,7 @@ void chatterCallback(const ImageConstPtr & msg) {
   //std::pair<double, long> newData (msg->header.stamp.toSec(), msg->data_handle);
   //mapBuffer.insert(newData);
   mapBuffer[msg->header.stamp.toSec()] = msg->data_handle;
+  //ROS_INFO("mapBuffer.size() = %d", mapBuffer.size());
 }
 
 bool findHandle_(tzc_transport::findHandle::Request &req, tzc_transport::findHandle::Response &res)
@@ -166,6 +167,7 @@ bool findHandle_(tzc_transport::findHandle::Request &req, tzc_transport::findHan
   double reqtoSec = req.timeStamp.toSec();
   ROS_INFO("request: timeStamp = %f", reqtoSec);
   double minSec = 100000;
+  bool findit = false;
   std::unordered_map<double, long>::iterator imageNo;
   std::unordered_map<double, long>::iterator x;  
   for (x = mapBuffer.begin(); x != mapBuffer.end(); ++x)
@@ -174,6 +176,7 @@ bool findHandle_(tzc_transport::findHandle::Request &req, tzc_transport::findHan
     {
       minSec = fabs(x->first - reqtoSec);
       imageNo = x;
+      findit = true;
     }
   }
 /*	//dxh cannot find version
@@ -186,11 +189,15 @@ bool findHandle_(tzc_transport::findHandle::Request &req, tzc_transport::findHan
     res.data_handle = dataBuffer[imageNo].data_handle;
   }
 */
-
-  ShmManager * pshm = new tzc_transport::ShmManager(boost::interprocess::open_only, "_kinect2_raw_color");
-  ShmMessage * msgData = (ShmMessage *)pshm->get_address_from_handle(imageNo->second);
-  msgData->addSaveRef();
-  res.data_handle = imageNo->second;
+  if (findit) {	//findit is to avoid minSec = 100000 problem, if time duration too big, imageNo would be null
+    ShmManager * pshm = new tzc_transport::ShmManager(boost::interprocess::open_only, "_kinect2_raw_pointcloud");
+    ShmMessage * msgData = (ShmMessage *)pshm->get_address_from_handle(imageNo->second);
+    msgData->addSaveRef();
+    res.data_handle = imageNo->second;
+  } else {
+    res.data_handle = -1;
+  }
+  
 
   return true;
 }
@@ -216,7 +223,7 @@ int main(int argc, char ** argv) {
   ros::NodeHandle n;
   Topic t(n);
   //ImageSubscriber s = t.subscribe< Image >("tzc_test_topic", 1, &chatterCallback);
-  ImageSubscriber s = t.subscribe< Image >("/kinect2/raw/color", 30, &chatterCallback);
+  ImageSubscriber s = t.subscribe< Image >("/kinect2/raw/pointcloud", 30, &chatterCallback);
   
   ros::NodeHandle nd;	//dxh
   ros::ServiceServer service = nd.advertiseService("find_Handle", findHandle_);	//dxh

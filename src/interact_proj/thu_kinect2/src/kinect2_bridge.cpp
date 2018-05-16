@@ -55,6 +55,13 @@
 #include <libfreenect2/config.h>
 #include <libfreenect2/registration.h>
 
+#include <pcl/point_cloud.h>
+#include <pcl/point_types.h>
+#include <pcl/io/pcd_io.h>
+#include <pcl/visualization/cloud_viewer.h>
+#include <pcl_ros/point_cloud.h>	//dxh
+#include <pcl_conversions/pcl_conversions.h>	//dxh
+
 namespace thu_kinect2
 {
 
@@ -69,6 +76,7 @@ private:
 #elif __USE_SHM_TRANSPORT__ == 2
   tzc_transport::Topic topic_;
   tzc_transport::ImagePublisher pub_color_, pub_ir_, pub_depth_;
+  tzc_transport::ImagePublisher pub_pcl_;	//dxh pointCloud publisher
 #else
   ros::Publisher pub_color_, pub_ir_, pub_depth_;
 #endif
@@ -124,6 +132,7 @@ public:
     pub_color_ = topic_.advertise<tzc_transport::Image>("/kinect2/raw/color", 30, 100 * 1024 * 1024);
     pub_ir_    = topic_.advertise<tzc_transport::Image>("/kinect2/raw/ir", 30, 10 * 1024 * 1024);
     pub_depth_ = topic_.advertise<tzc_transport::Image>("/kinect2/raw/depth", 30, 10 * 1024 * 1024);
+    pub_pcl_ = topic_.advertise<tzc_transport::Image>("/kinect2/raw/pointcloud", 30, 200 * 1024 * 1024);
 #endif
   }
   ~Kinect2Bridge() {
@@ -142,14 +151,17 @@ public:
   }
   void spinOnce() {
     libfreenect2::FrameMap frames;
+    cv::Mat rgbMat, depthMat;
     if (freenect2_listener_irdepth_->waitForNewFrame(frames, 100)) {
       libfreenect2::Frame * frameIr = frames[libfreenect2::Frame::Ir];
       libfreenect2::Frame * frameDepth = frames[libfreenect2::Frame::Depth];
 //      ROS_INFO("received ir frames: %d(%lux%lu)", frameIr->status, frameIr->width, frameIr->height);
 //      ROS_INFO("received depth frames: %d(%lux%lu)", frameDepth->status, frameDepth->width, frameDepth->height);
 
-      publishImage(pub_ir_, frameIr);
-      publishImage(pub_depth_, frameDepth);
+      publishImage(pub_ir_, frameIr); //, "IR");
+      publishImage(pub_depth_, frameDepth); //, "DEPTH");
+//ROS_INFO("framedepth = %d", sizeof(frameDepth->data[0]));
+      cv::Mat(frameDepth->height, frameDepth->width, CV_32FC1, frameDepth->data).copyTo(depthMat);	//dxh
 
       freenect2_listener_irdepth_->release(frames);
     }
@@ -157,22 +169,110 @@ public:
       libfreenect2::Frame * frameColor = frames[libfreenect2::Frame::Color];
 //      ROS_INFO("received color frames: %d(%lux%lu)", frameColor->status, frameColor->width, frameColor->height);
 
-      publishImage(pub_color_, frameColor);
+      publishImage(pub_color_, frameColor); //, "COLOR");
 
+//ROS_INFO("framecolor = %d", sizeof(frameColor->data[0]));
+      cv::Mat(frameColor->height, frameColor->width, CV_8UC4, frameColor->data).copyTo(rgbMat);	//dxh
+   
       freenect2_listener_color_->release(frames);
     }
+
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ> () );
+    cloud=depth2cloud(rgbMat, depthMat);
+//ROS_INFO("x = %f, y = %f, z = %f", cloud->points[0].x, cloud->points[0].y, cloud->points[0].z);
+//ROS_INFO("cloud type is %s", typeid(cloud->points[0].x).name());
+    publishPCL(pub_pcl_, cloud);
+
   }
 private:
+#if __USE_SHM_TRANSPORT__ == 2
+  pcl::PointCloud<pcl::PointXYZ>::Ptr depth2cloud( cv::Mat rgb_image, cv::Mat depth_image ) {
+    float f = 570.3;
+    float cx = 320.0, cy = 240.0;
+
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_ptr( new pcl::PointCloud<pcl::PointXYZ> () );
+    cloud_ptr->width  = rgb_image.cols;
+    cloud_ptr->height = rgb_image.rows;
+    cloud_ptr->is_dense = false;
+
+    for ( int y = 0; y < rgb_image.rows; ++ y ) {
+        for ( int x = 0; x < rgb_image.cols; ++ x ) {
+            pcl::PointXYZ pt;
+            if ( depth_image.at<unsigned short>(y, x) != 0 )
+            {
+                pt.z = depth_image.at<unsigned short>(y, x)/1000.0;
+                pt.x = (x-cx)*pt.z/f;
+                pt.y = (y-cy)*pt.z/f;
+                //pt.r = rgb_image.at<cv::Vec3b>(y, x)[2];
+                //pt.g = rgb_image.at<cv::Vec3b>(y, x)[1];
+                //pt.b = rgb_image.at<cv::Vec3b>(y, x)[0];
+                cloud_ptr->points.push_back( pt );
+            }
+            else
+            {
+                pt.x = std::numeric_limits<float>::quiet_NaN();
+                pt.y = std::numeric_limits<float>::quiet_NaN();
+                pt.z = std::numeric_limits<float>::quiet_NaN();
+                //pt.r = rgb_image.at<cv::Vec3b>(y, x)[2];
+                //pt.g = rgb_image.at<cv::Vec3b>(y, x)[1];
+                //pt.b = rgb_image.at<cv::Vec3b>(y, x)[0];
+                cloud_ptr->points.push_back( pt );
+            }
+        }
+    }
+    return cloud_ptr;
+  }
+
+  void publishPCL(tzc_transport::ImagePublisher & pub, pcl::PointCloud<pcl::PointXYZ>::Ptr & pframe) {
+     if (pub.getNumSubscribers() > 0) {
+      tzc_transport::Image msg;
+      msg.header.stamp = ros::Time::now();
+      msg.height = pframe->height;
+      msg.width = pframe->width;
+      msg.is_bigendian = false;
+
+      msg.encoding = "PointCloud";
+      msg.step = pframe->width * 12;	//float_ x y z 4+4+4=12 bytes
+      msg.data_size = msg.step * msg.height;
+      if (!pub.prepare(msg))
+        return;
+      //cv::Mat src(pframe->height, pframe->width, CV_8UC4, pframe->data);
+      //cv::Mat dst(msg.height, msg.width, CV_8UC3, msg.data);
+      //cv::cvtColor(src, dst, CV_BGRA2BGR);
+
+      for(int i=0; i<pframe->points.size(); ++i) {
+	int shiftBytes = i*12;
+        uint8_t bAry[4];
+	uint8_t* lpAry = bAry;
+	*( float* )lpAry = pframe->points[i].x;
+	for (int j=0; j<4; ++j) {
+	  *(msg.data + shiftBytes + j) = lpAry[j];
+	}
+	*( float* )lpAry = pframe->points[i].y;
+	for (int j=0; j<4; ++j) {
+	  *(msg.data + shiftBytes + j + 4) = lpAry[j];
+	}
+	*( float* )lpAry = pframe->points[i].z;
+	for (int j=0; j<4; ++j) {
+	  *(msg.data + shiftBytes + j + 8) = lpAry[j];
+	}
+      }
+
+      pub.publish(msg);
+    }
+  }
+#endif
+
   void showImage(libfreenect2::Frame * pframe) {
     cv::Mat rgbmat;
 
-    cv::Mat(pframe->height, pframe->width, CV_8UC4, pframe->data).copyTo(rgbmat);
+    cv::Mat(pframe->height, pframe->width, CV_8UC3, pframe->data).copyTo(rgbmat);
     cv::imshow("rgb", rgbmat);
     cv::waitKey(0);
   }
 
 #if __USE_SHM_TRANSPORT__ == 2
-  void publishImage(tzc_transport::ImagePublisher & pub, libfreenect2::Frame * pframe) {
+  void publishImage(tzc_transport::ImagePublisher & pub, libfreenect2::Frame * pframe) { //, char* outStr) {
     if (pframe->status == 0 && pub.getNumSubscribers() > 0) {
       tzc_transport::Image msg;
       msg.header.stamp = ros::Time::now();
@@ -188,6 +288,7 @@ private:
         cv::Mat src(pframe->height, pframe->width, CV_8UC4, pframe->data);
         cv::Mat dst(msg.height, msg.width, CV_8UC3, msg.data);
         cv::cvtColor(src, dst, CV_BGRA2BGR);
+	//ROS_INFO("%s use BGRX", outStr);
       } else if (pframe->format == libfreenect2::Frame::RGBX) {
         msg.encoding = sensor_msgs::image_encodings::BGR8;
         msg.step = pframe->width * 3;
@@ -197,6 +298,7 @@ private:
         cv::Mat src(pframe->height, pframe->width, CV_8UC4, pframe->data);
         cv::Mat dst(msg.height, msg.width, CV_8UC3, msg.data);
         cv::cvtColor(src, dst, CV_RGBA2BGR);
+	//ROS_INFO("%s use RGBX", outStr);
       } else if (pframe->format == libfreenect2::Frame::Float) {
         msg.encoding = sensor_msgs::image_encodings::TYPE_16UC1;
         msg.step = pframe->width * 2;
@@ -206,6 +308,7 @@ private:
         cv::Mat src(pframe->height, pframe->width, CV_32FC1, pframe->data);
         cv::Mat dst(msg.height, msg.width, CV_16U, msg.data);
         src.convertTo(dst, CV_16U);
+	//ROS_INFO("%s use Float", outStr);
       }
       pub.publish(msg);
     }

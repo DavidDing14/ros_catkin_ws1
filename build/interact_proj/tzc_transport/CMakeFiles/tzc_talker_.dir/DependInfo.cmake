@@ -10,15 +10,23 @@ set(CMAKE_CXX_COMPILER_ID "GNU")
 
 # Preprocessor definitions for this target.
 set(CMAKE_TARGET_DEFINITIONS_CXX
+  "EIGEN_USE_NEW_STDVECTOR"
+  "EIGEN_YES_I_KNOW_SPARSE_MODULE_IS_NOT_STABLE_YET"
+  "FLANN_STATIC"
   "ROSCONSOLE_BACKEND_LOG4CXX"
   "ROS_BUILD_SHARED_LIBS=1"
   "ROS_PACKAGE_NAME=\"tzc_transport\""
+  "qh_QHpointer"
   )
 
 # The include file search paths:
 set(CMAKE_CXX_TARGET_INCLUDE_PATH
   "/home/oslab/catkin_ws1/devel/include"
   "/usr/include/opencv"
+  "/usr/include/vtk-5.8"
+  "/usr/include/pcl-1.7"
+  "/usr/include/eigen3"
+  "/usr/include/ni"
   "/opt/ros/indigo/include"
   "/home/oslab/catkin_ws1/src/interact_proj/tzc_transport/include"
   )

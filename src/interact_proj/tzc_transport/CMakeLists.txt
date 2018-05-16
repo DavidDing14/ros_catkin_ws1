@@ -13,6 +13,17 @@ find_package(catkin REQUIRED COMPONENTS
 
 find_package(OpenCV REQUIRED)
 
+find_package(PCL REQUIRED)
+if(PCL_FOUND)
+  message(STATUS "Found PCL ${PCL_LIBRARY_DIRS}")
+  include_directories(${PCL_INCLUDE_DIRS})
+  link_directories(${PCL_LIBRARY_DIRS})
+  add_definitions(${PCL_DEFINITIONS})
+  set(PCL_FOUND TRUE)
+else()
+  set(PCL_FOUND FALSE)
+endif()
+
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
 

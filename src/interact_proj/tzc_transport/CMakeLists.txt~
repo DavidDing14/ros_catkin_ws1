@@ -13,6 +13,17 @@ find_package(catkin REQUIRED COMPONENTS
 
 find_package(OpenCV REQUIRED)
 
+find_package(PCL REQUIRED)
+if(PCL_FOUND)
+  message(STATUS "Found PCL ${PCL_LIBRARY_DIRS}")
+  include_directories(${PCL_INCLUDE_DIRS})
+  link_directories(${PCL_LIBRARY_DIRS})
+  add_definitions(${PCL_DEFINITIONS})
+  set(PCL_FOUND TRUE)
+else()
+  set(PCL_FOUND FALSE)
+endif()
+
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
 
@@ -213,7 +224,7 @@ target_link_libraries(tzc_talker_ ${catkin_LIBRARIES} -lrt)
 add_dependencies(tzc_talker_ tzc_transport_generate_messages_cpp)
 
 add_executable(tzc_listener_ src/tzc_listener.cpp)
-target_link_libraries(tzc_listener_ ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} -lrt)
+target_link_libraries(tzc_listener_ ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES} -lrt)
 add_dependencies(tzc_listener_ tzc_transport_generate_messages_cpp)
 
 add_executable(test_findHandle src/test_findHandle.cpp)

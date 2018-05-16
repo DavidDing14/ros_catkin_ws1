@@ -39,13 +39,13 @@ int main(int argc, char **argv)
     ROS_INFO("time duration = %f", t_.toSec());
     long got_data_handle = srv.response.data_handle;
     //ROS_INFO("data_handle : %ld", got_data_handle);
-/*	//dxh cannot find version
+	//dxh cannot find version
     if (got_data_handle == -1)
     {
       ROS_ERROR("cannot find the image");
       return 1;
     }
-*/
+
 
     ShmManager * pshm = new tzc_transport::ShmManager(boost::interprocess::open_only, mainTopic);
     ShmMessage * msgData = (ShmMessage *)pshm->get_address_from_handle(got_data_handle);
